@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Arena</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #1a1a1a;
+      color: #f4f4f4;
+      text-align: center;
+      padding: 20px;
+    }
+    button, input {
+      font-size: 1rem;
+      padding: 10px;
+      margin: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background: #0077cc;
+      color: white;
+      cursor: pointer;
+    }
+    .fighter-container {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin-top: 20px;
+    }
+    .fighter {
+      background: #2e2e2e;
+      padding: 15px;
+      border-radius: 10px;
+      width: 45%;
+    }
+    img.portrait {
+      width: 120px;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    img.left-portrait {
+      transform: scaleX(-1);
+    }
+    .log {
+      max-width: 800px;
+      margin: 30px auto;
+      text-align: left;
+      white-space: pre-line;
+      font-family: monospace;
+      font-size: 0.95rem;
+      background: #2e2e2e;
+      padding: 20px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>The Arena</h1>
+  <div id="gold">Gold: 1000</div>
+  <div class="fighter-container">
+    <div class="fighter" id="leftStats"></div>
+    <div class="fighter" id="rightStats"></div>
+  </div>
+  <div>
+    <p>Odds: <span id="odds"></span></p>
+    <select id="betChoice">
+      <option value="left">Left Fighter</option>
+      <option value="right">Right Fighter</option>
+    </select>
+    <input type="number" id="betAmount" placeholder="Bet Amount" min="1" value="100">
+    <button onclick="placeBet()">Place Bet</button>
+  </div>
+  <button onclick="startCombat()">Start Match</button>
+  <div class="log" id="log"></div>
+
+  <script>
+    let gold = 1000;
+    let betSide = null;
+    let betAmount = 0;
+    let left, right, leftOdds = 0.5, rightOdds = 0.5;
+
+    const namePools = {
+      Mage: { M: ["Edgar", "Rowan", "Alric", "Cedric", "Gareth"], F: ["Meredith", "Lilian", "Isolde", "Elaine", "Mira"] },
+      Archer: { M: ["Haruki", "Takeshi", "Yuki", "Souta", "Kaito"], F: ["Ren", "Aiko", "Hana", "Yui", "Nana"] },
+      "Dragon Knight": { M: ["Gunther", "Klaus", "Rolf", "Heinrich", "Dietrich"] },
+      "Pegasus Knight": { F: ["Haruka", "Sakura", "Rin", "Ayaka", "Megumi"] },
+      Paladin: { M: ["Dieter", "Heinrich", "Erich", "Fritz", "Karl"], F: ["Lotte", "Anika", "Greta", "Heidi", "Hilda"] },
+      Armor: { M: ["Fritz", "Wilhelm", "Gerhard", "Otto", "Bernhard"], F: ["Greta", "Liselotte", "Brunhilde", "Ingrid", "Ursula"] },
+      Infantry: { M: ["Arthur", "Henry", "Thomas", "Geoffrey", "Edward"], F: ["Elaine", "Beatrice", "Alice", "Diana", "Clara"] },
+      Rogue: { M: ["Kenta", "Taro", "Riku", "Shinji", "Hiro"] },
+      Maid: { F: ["Clair", "Sophie", "Isabelle", "Fleur", "Amélie"] },
+      Undead: { M: ["Zaroth", "Threl", "Morvok", "Drelg", "Varnok"], F: ["Morgal", "Nyx", "Velora", "Thyra", "Xara"] }
+    };
+
+    const classList = [
+      { name: "Mage", bonusVs: "Armor", bonus: { type: "flat", value: 5 } },
+      { name: "Archer", bonusVs: "Dragon Knight", bonus: { type: "mult", value: 3 } },
+      { name: "Dragon Knight", bonusVs: "Infantry", bonus: { type: "flat", value: 4 } },
+      { name: "Rogue", bonusVs: "Mage", bonus: { type: "flat", value: 2 } },
+      { name: "Paladin", bonusVs: "Undead", bonus: { type: "mult", value: 2 } },
+      { name: "Armor", bonusVs: "Rogue", bonus: { type: "flat", value: 3 } },
+      { name: "Infantry", bonusVs: "Archer", bonus: { type: "flat", value: 3 } },
+      { name: "Undead", bonusVs: null, bonus: null },
+    ];
+
+    function getRandomStat(min, max, bias = "middle") {
+      const roll = Math.random();
+      if (bias === "high") return Math.floor((1 - Math.pow(1 - roll, 2)) * (max - min)) + min;
+      if (bias === "low") return Math.floor((Math.pow(roll, 2)) * (max - min)) + min;
+      return Math.floor(((roll + Math.random()) / 2) * (max - min)) + min;
+    }
+
+    function getRandomItem(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function rollAverage100() {
+      return (Math.random() * 100 + Math.random() * 100) / 2;
+    }
+
+    function roll100() {
+      return Math.random() * 100;
+    }
+
+    function rollDamage() {
+      return getRandomStat(5, 20);
+    }
+
+    function calculateDamage(base, attacker, defender, crit) {
+      let finalDamage = base;
+      if (attacker.bonusVs === defender.baseClass) {
+        if (attacker.bonus?.type === "flat") {
+          finalDamage += attacker.bonus.value;
+        } else if (attacker.bonus?.type === "mult") {
+          finalDamage *= attacker.bonus.value;
+        }
+      }
+      return crit ? Math.floor(finalDamage * 3) : Math.floor(finalDamage);
+    }
+
+    function createFighter() {
+      const classBase = getRandomItem(classList);
+      const gender = Math.random() < 0.5 ? 'M' : 'F';
+      let className = classBase.name;
+      if (classBase.name === "Rogue" && gender === "F") className = "Maid";
+      if (classBase.name === "Dragon Knight" && gender === "F") className = "Pegasus Knight";
+
+      const name = getRandomItem(namePools[className]?.[gender] || namePools[classBase.name]?.[gender] || ["Nameless"]);
+
+      return {
+        name,
+        gender,
+        class: className,
+        baseClass: classBase.name,
+        bonusVs: classBase.bonusVs,
+        bonus: classBase.bonus,
+        hp: getRandomStat(10, 60),
+        hitRate: getRandomStat(1, 100, "high"),
+        critRate: getRandomStat(1, 50, "low"),
+        attackSpeed: getRandomStat(10, 30),
+      };
+    }
+
+    function simulateCombat(l, r) {
+      l = JSON.parse(JSON.stringify(l));
+      r = JSON.parse(JSON.stringify(r));
+      while (l.hp > 0 && r.hp > 0) {
+        fightRound(l, r);
+      }
+      return l.hp > 0 ? "left" : "right";
+    }
+
+    function fightRound(l, r) {
+      combatStep(r, l);
+      if (l.hp <= 0) return;
+      combatStep(l, r);
+      if (r.hp <= 0) return;
+      const diff = Math.abs(l.attackSpeed - r.attackSpeed);
+      if (r.attackSpeed > l.attackSpeed && diff >= 4) combatStep(r, l);
+      else if (l.attackSpeed > r.attackSpeed && diff >= 4) combatStep(l, r);
+    }
+
+    function combatStep(a, d) {
+      if (rollAverage100() > a.hitRate) return;
+      const crit = roll100() < a.critRate;
+      const base = rollDamage();
+      d.hp -= calculateDamage(base, a, d, crit);
+    }
+
+    function displayFighterStats() {
+      const portrait = (f, isLeft) => `<img class="portrait${isLeft ? ' left-portrait' : ''}" src="../assets/png/${f.class}${f.gender}.png" alt="portrait">`;
+      const stats = (f, isLeft) => `${portrait(f, isLeft)}<h3>${f.name} the ${f.class}</h3><p>HP: ${f.hp}<br>Hit Rate: ${f.hitRate}<br>Crit Rate: ${f.critRate}<br>Speed: ${f.attackSpeed}<br>Bonus vs: ${f.bonusVs || 'None'}</p>`;
+      document.getElementById("leftStats").innerHTML = stats(left, true);
+      document.getElementById("rightStats").innerHTML = stats(right, false);
+    }
+
+    function setupFight() {
+      do {
+        left = createFighter();
+        right = createFighter();
+
+        let leftWins = 0, rightWins = 0;
+        for (let i = 0; i < 100; i++) {
+          const result = simulateCombat(left, right);
+          if (result === "left") leftWins++;
+          else rightWins++;
+        }
+        leftOdds = leftWins / 100;
+        rightOdds = rightWins / 100;
+      } while (leftOdds > 0.9 || rightOdds > 0.9);
+
+      document.getElementById("odds").textContent = `Left: ${leftOdds.toFixed(2)} | Right: ${rightOdds.toFixed(2)}`;
+      displayFighterStats();
+    }
+
+    function placeBet() {
+      const side = document.getElementById("betChoice").value;
+      const amount = parseInt(document.getElementById("betAmount").value);
+      if (amount > gold || amount <= 0) return alert("Invalid bet amount");
+      betSide = side;
+      betAmount = amount;
+      alert(`Betting ${amount} gold on ${side === "left" ? left.name : right.name}`);
+    }
+
+    function startCombat() {
+      if (betSide === null || betAmount <= 0 || betAmount > gold) {
+        alert("Please place a valid bet before starting the match.");
+        return;
+      }
+      gold -= betAmount;
+
+      const log = [];
+      let l = JSON.parse(JSON.stringify(left));
+      let r = JSON.parse(JSON.stringify(right));
+      let round = 1;
+
+      while (l.hp > 0 && r.hp > 0) {
+        log.push(`-- Round ${round++} --`);
+        log.push(combatLog(r, l));
+        if (l.hp <= 0) break;
+        log.push(combatLog(l, r));
+        if (r.hp <= 0) break;
+        const diff = Math.abs(l.attackSpeed - r.attackSpeed);
+        if (r.attackSpeed > l.attackSpeed && diff >= 4) log.push(combatLog(r, l));
+        else if (l.attackSpeed > r.attackSpeed && diff >= 4) log.push(combatLog(l, r));
+      }
+
+      const winner = l.hp > 0 ? "left" : "right";
+      const winnerName = l.hp > 0 ? left.name : right.name;
+      log.push(`\n🏆 ${winnerName} wins the match!`);
+
+      if (betSide === winner) {
+        const odds = winner === "left" ? leftOdds : rightOdds;
+        const payout = Math.floor((1 / odds) * betAmount);
+        gold += payout;
+        log.push(`You won your bet! Earned ${payout} gold.`);
+      } else {
+        log.push(`You lost your bet. Lost ${betAmount} gold.`);
+      }
+      document.getElementById("gold").textContent = `Gold: ${gold}`;
+      document.getElementById("log").textContent = log.join("\n");
+      betSide = null;
+      betAmount = 0;
+      setupFight();
+    }
+
+    function combatLog(a, d) {
+      if (rollAverage100() > a.hitRate) return `${a.name} the ${a.class} missed!`;
+      const crit = roll100() < a.critRate;
+      const base = rollDamage();
+      const dmg = calculateDamage(base, a, d, crit);
+      d.hp -= dmg;
+      return `${a.name} the ${a.class} hits ${d.name} for ${dmg} damage${crit ? " (CRIT!)" : ""}${a.bonusVs === d.baseClass ? " [Class Bonus!]" : ""}`;
+    }
+
+    setupFight();
+  </script>
+</body>
+</html>

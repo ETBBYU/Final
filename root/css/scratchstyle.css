@@ -1,0 +1,64 @@
+h1{
+    text-align: center;
+}
+ol{
+    justify-content: baseline;
+    text-decoration: none;
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    font-size: 16px;
+}
+.game{
+    text-decoration: underline;
+    font-size: 20px;
+}
+p{
+    font-size: 16px;
+    text-decoration: none;
+}
+.bg{
+    background-image: url(../assets/img/background.avif);
+}
+
+.box{
+    border-width: 1px;
+    border-style: solid;
+    border-color: gray;
+    padding: 3px;
+    margin: 5px;
+}
+
+.fav{
+    color: darkred;
+}
+
+.list {
+    left: 15px;
+    width: 300px;
+    z-index: 1;
+    background-color: thistle;
+    position: absolute;
+}
+
+.video{
+    position: absolute;
+    right: 30px;
+}
+
+
+a{
+    background-color: azure;
+}
+
+.open {
+    text-align: center;
+    right: 500px;
+    left: 500px;
+    background-color: white;
+    position: absolute;
+}
+
+.images{
+    position: absolute;
+    top: 700px;
+    right: 30px;
+}
